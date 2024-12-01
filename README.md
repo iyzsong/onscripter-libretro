@@ -4,6 +4,10 @@ ONScripter is a visual novel games engine compatible to NScripter,
 this project provides a libretro core allowing the ONScripter visual
 novel games to be played with libretro frontends such as RetroArch.
 
+This version is based on the ogapee upstream, you may want to use
+[OnscripterYuri](https://github.com/YuriSizuku/OnscripterYuri) for Chinese games.
+
+
 
 This project is based on:
 - bzip2: https://sourceware.org/bzip2/
