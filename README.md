@@ -26,4 +26,4 @@ Thanks them!
     git clone --recursive https://github.com/iyzsong/onscripter-libretro
     cd onscripter-libretro
     ./update-deps.sh
-    make
+    mkdir build; cd build; cmake .. && make
