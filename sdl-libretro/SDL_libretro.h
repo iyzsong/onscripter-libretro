@@ -7,10 +7,13 @@
 extern "C" {
 #endif
 
-extern SDL_AudioSpec       *SDL_libretro_audio_spec;
-extern retro_input_state_t  SDL_libretro_input_state_cb;
-extern SDL_sem             *SDL_libretro_event_sem;
-void                        SDL_libretro_PumpEvents(void);
+void    SDL_libretro_RefreshVideo(retro_video_refresh_t video_cb);
+void    SDL_libretro_ProduceAudio(retro_audio_sample_batch_t audio_batch_cb);
+void    SDL_libretro_KeyboardCallback(bool down, unsigned keycode, uint32_t character, uint16_t key_modifiers);
+int     SDL_PrivateKeyboard(Uint8 state, SDL_keysym *key);
+int     SDL_PrivateMouseMotion(Uint8 buttonstate, int relative, Sint16 x, Sint16 y);
+int     SDL_PrivateMouseButton(Uint8 state, Uint8 button, Sint16 x, Sint16 y);
+
 
 #ifdef __cplusplus
 }

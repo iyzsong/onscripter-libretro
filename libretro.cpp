@@ -3,13 +3,10 @@
 #include <file/file_path.h>
 #include <onscripter/ONScripter.h>
 
-retro_input_state_t  SDL_libretro_input_state_cb;
-SDL_AudioSpec       *SDL_libretro_audio_spec = NULL;
-SDL_sem             *SDL_libretro_event_sem  = NULL;
-
 static void                        fallback_log(enum retro_log_level level, const char *fmt, ...);
 static retro_log_printf_t          log_cb = fallback_log;
 static retro_video_refresh_t       video_cb;
+static retro_input_state_t         input_state_cb;
 static retro_input_poll_t          input_poll_cb;
 static retro_audio_sample_batch_t  audio_batch_cb;
 static retro_environment_t         environ_cb;
@@ -61,7 +58,7 @@ void retro_set_input_poll(retro_input_poll_t cb)
 
 void retro_set_input_state(retro_input_state_t cb)
 {
-  SDL_libretro_input_state_cb = cb;
+  input_state_cb = cb;
 }
 
 void retro_get_system_info(struct retro_system_info *info)
@@ -123,12 +120,15 @@ bool retro_load_game(const struct retro_game_info *game)
   fill_pathname_basedir(archive_path, game->path, sizeof(archive_path));
   ons.setArchivePath(archive_path);
 
-  SDL_libretro_event_sem = SDL_CreateSemaphore(0);
-
   if (ons.openScript() != 0) {
     return false;
   }
   ons_thread = SDL_CreateThread(ons_main, NULL);
+
+  struct retro_keyboard_callback keyboard = {
+    .callback = SDL_libretro_KeyboardCallback,
+  };
+  environ_cb(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &keyboard);
 
   return true;
 }
@@ -146,27 +146,105 @@ void retro_reset(void)
   ons.resetCommand();
 }
 
+static void pump_joypad_events(void)
+{
+  static SDL_keysym sym;
+  static int16_t buttons[16] = {0};
+  static const SDLKey bkeys[16] = {
+    [RETRO_DEVICE_ID_JOYPAD_B]      = SDLK_SPACE,
+    [RETRO_DEVICE_ID_JOYPAD_Y]      = SDLK_RCTRL,
+    [RETRO_DEVICE_ID_JOYPAD_SELECT] = SDLK_0,
+    [RETRO_DEVICE_ID_JOYPAD_START]  = SDLK_a,
+    [RETRO_DEVICE_ID_JOYPAD_UP]     = SDLK_UP,
+    [RETRO_DEVICE_ID_JOYPAD_DOWN]   = SDLK_DOWN,
+    [RETRO_DEVICE_ID_JOYPAD_LEFT]   = SDLK_LEFT,
+    [RETRO_DEVICE_ID_JOYPAD_RIGHT]  = SDLK_RIGHT,
+    [RETRO_DEVICE_ID_JOYPAD_A]      = SDLK_RETURN,
+    [RETRO_DEVICE_ID_JOYPAD_X]      = SDLK_ESCAPE,
+    [RETRO_DEVICE_ID_JOYPAD_L]      = SDLK_o,
+    [RETRO_DEVICE_ID_JOYPAD_R]      = SDLK_s,
+    [RETRO_DEVICE_ID_JOYPAD_L2]     = SDLK_PAGEUP,
+    [RETRO_DEVICE_ID_JOYPAD_R2]     = SDLK_PAGEDOWN,
+    [RETRO_DEVICE_ID_JOYPAD_L3]     = SDLK_TAB,
+    [RETRO_DEVICE_ID_JOYPAD_R3]     = SDLK_q,
+  };
+  for (int i = 0; i < 16; ++i) {
+    int16_t state = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, i);
+    SDLKey k = bkeys[i];
+    if (k && buttons[i] != state) {
+      buttons[i] = state;
+      sym.scancode = k;
+      sym.sym = k;
+      SDL_PrivateKeyboard(state ? SDL_PRESSED : SDL_RELEASED, &sym);
+    }
+  }
+}
+
+static Uint8 pressed_to_button(int16_t pressed)
+{
+  if (pressed == 1)
+    return SDL_BUTTON_LEFT;
+  if (pressed == 2)
+    return SDL_BUTTON_RIGHT;
+  return 0;
+}
+
+static void pump_mouse_events(void)
+{
+  static Sint16 x = 0;
+  static Sint16 y = 0;
+  static Uint8 btn = 0;
+  static int16_t pressed = 0;
+
+  SDL_Surface *screen = SDL_GetVideoSurface();
+  int16_t _x = input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_X);
+  int16_t _y = input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_Y);
+  int16_t _pressed = 0;
+
+  _x = screen->w * (_x + 0x7fff) / 0xffff;
+  _y = screen->h * (_y + 0x7fff) / 0xffff;
+  if (x != _x || y != _y) {
+    x = _x;
+    y = _y;
+    SDL_PrivateMouseMotion(0, 0, x, y);
+  }
+
+  while (input_state_cb(0, RETRO_DEVICE_POINTER, _pressed, RETRO_DEVICE_ID_POINTER_PRESSED)) {
+    _pressed += 1;
+  }
+
+  if (input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT)) {
+    _pressed = 1;
+  }
+  if (input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT)) {
+    _pressed = 2;
+  }
+
+  if (pressed) {
+    if (!_pressed) {
+      btn = pressed_to_button(pressed);
+      SDL_PrivateMouseButton(SDL_RELEASED, btn, x, y);
+      pressed = 0;
+    }
+  } else {
+    if (_pressed) {
+      btn = pressed_to_button(_pressed);
+      SDL_PrivateMouseButton(SDL_PRESSED, btn, x, y);
+      pressed = _pressed;
+    }
+  }
+}
+
 void retro_run(void)
 {
-  SDL_Surface *screen = SDL_GetVideoSurface();
-  SDL_AudioSpec *spec = SDL_libretro_audio_spec;
-  static const size_t max_frames = 2048;
-  static int16_t stream[max_frames * 2];
-  size_t frames = delta * 44100 / 1000;
-  frames = (frames / 32 + 1) * 32;
+  if (SDL_GetVideoSurface() == NULL)
+    return;
 
   input_poll_cb();
-  SDL_libretro_PumpEvents();
-  video_cb(screen->pixels, screen->w, screen->h, screen->pitch);
-
-  // XXX: convert audio format?
-  if (spec && SDL_GetAudioStatus() == SDL_AUDIO_PLAYING && frames <= max_frames) {
-    SDL_LockAudio();
-    memset(stream, 0, frames * 4);
-    spec->callback(NULL, (uint8_t *)stream, frames * 4);
-    audio_batch_cb(stream, frames);
-    SDL_UnlockAudio();
-  }
+  pump_joypad_events();
+  pump_mouse_events();
+  SDL_libretro_RefreshVideo(video_cb);
+  SDL_libretro_ProduceAudio(audio_batch_cb);
 }
 
 size_t retro_serialize_size(void)
@@ -194,9 +272,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
 
 void retro_unload_game(void)
 {
-  SDL_KillThread(ons_thread);
-  SDL_DestroySemaphore(SDL_libretro_event_sem);
-  SDL_Quit();
+  SDL_Event event;
+  event.type = SDL_QUIT;
+  SDL_PushEvent(&event);
+  SDL_WaitThread(ons_thread, NULL);
 }
 
 unsigned retro_get_region(void)

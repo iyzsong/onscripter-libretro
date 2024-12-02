@@ -113,7 +113,7 @@ SDL_Rect **DUMMY_ListModes(_THIS, SDL_PixelFormat *format, Uint32 flags)
 }
 
 SDL_Surface *DUMMY_SetVideoMode(_THIS, SDL_Surface *current,
-				int width, int height, int bpp, Uint32 flags)
+                                int width, int height, int bpp, Uint32 flags)
 {
   if (this->hidden->buffer) {
     SDL_free(this->hidden->buffer);
@@ -188,4 +188,10 @@ void DUMMY_VideoQuit(_THIS)
       SDL_free(this->screen->pixels);
       this->screen->pixels = NULL;
   }
+}
+
+void SDL_libretro_RefreshVideo(retro_video_refresh_t video_cb)
+{
+  SDL_Surface *screen = SDL_GetVideoSurface();
+  video_cb(screen->pixels, screen->w, screen->h, screen->pitch);
 }
