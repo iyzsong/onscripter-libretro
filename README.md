@@ -11,10 +11,11 @@ This version is based on the ogapee upstream, you may want to use
 
 This project is based on:
 - bzip2: https://sourceware.org/bzip2/
+- zlib: https://zlib.net/
+- FreeType: https://www.freetype.org/
 - libogg: https://xiph.org/ogg/
 - libvorbis: https://xiph.org/vorbis/
 - mad: https://www.underbit.com/products/mad/
-- stb_truetype: https://github.com/nothings/stb, https://github.com/codewitch-honey-crisis/stb
 - SDL, SDL_image, SDL_mixer, SDL_ttf: https://libsdl.org/
 - ONScripter: https://github.com/ogapee/onscripter
 - sdl-libretro: https://github.com/libretro/sdl-libretro

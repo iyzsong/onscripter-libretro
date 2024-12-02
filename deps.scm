@@ -47,10 +47,12 @@
                          "--strip-components=1"
                          "-xvf" pkg)))))
         '(("bzip2" #$(package-source bzip2))
+          ("freetype" #$(package-source freetype))
           ("libogg" #$(package-source libogg))
           ("libvorbis" #$(package-source libvorbis))
           ("libmad" #$ (package-source libmad))
           ("sdl" #$(package-source sdl))
           ("sdl-image" #$(package-source sdl-image))
           ("sdl-mixer" #$(package-source sdl-mixer))
+          ("sdl-ttf" #$(package-source sdl-ttf))
           ("onscripter" #$onscripter-source))))))
