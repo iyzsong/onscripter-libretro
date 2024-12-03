@@ -65,7 +65,7 @@ void retro_get_system_info(struct retro_system_info *info)
 {
   info->need_fullpath = true;
   info->valid_extensions = "txt|dat|___|ons";
-  info->library_version = "0.2";
+  info->library_version = "0.3";
   info->library_name = "onscripter";
   info->block_extract = false;
 }
