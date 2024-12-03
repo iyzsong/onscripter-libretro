@@ -14,3 +14,7 @@ fi
 tar -C deps -xf $(pwd)/deps.tar.xz
 chmod -R u+w deps
 cp -rv deps.overlay/* ./deps/
+
+# fix some errors for the compiler
+sed -i 's#vf, char \*initial#vf, const char *initial#' deps/sdl-mixer/dynamic_ogg.h
+sed -i 's#^	return;#	return 0;#' deps/sdl-mixer/music_mad.c
