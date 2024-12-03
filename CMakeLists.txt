@@ -131,7 +131,7 @@ set(SOURCES
   deps/libretro-common/string/stdstring.c
   deps/libretro-common/time/rtime.c
   deps/libretro-common/file/file_path.c
-  deps/libretro-common/libco/libco.c
+  deps/libretro-common/queues/fifo_queue.c
   deps/onscripter/ONScripter.cpp
   deps/onscripter/ONScripter_animation.cpp
   deps/onscripter/ONScripter_command.cpp
@@ -175,6 +175,7 @@ target_compile_definitions(onscripter_libretro PRIVATE
   -DFPM_DEFAULT -DSIZEOF_INT=4
   -DLOAD_JPG -DLOAD_BMP -DLOAD_PNG
   -DOGG_MUSIC -DMP3_MAD_MUSIC
+  -DENABLE_1BYTE_CHAR
 )
 target_include_directories(onscripter_libretro PRIVATE
   deps
